@@ -1,27 +1,31 @@
+//Libraries to include
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>// includes library for ESP8266 web browsing capabilities
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <ArduinoJson.h>   
-
+//INTERNET ACCESS POINT//
 //#define ssid "University of Washington"
 //#define pass ""
-
 #define ssid "Penthouse"
 #define pass "61421226"
+//MQTT Information//
 #define mqtt_server "mediatedspaces.net"
 #define mqtt_name "hcdeiot"
 #define mqtt_pass "esp8266"
-String weatherKey = "2fec1143f43e5bc01d052646a2cb8e1c"; //API key for open weather API
-boolean timeStart = false;
 
+//Initializes LED pins
 int greenPin = 15;
 int redPin = 12;
 int bluePin = 13;
+//Initializes other global scope variables
 int humidity;
 long lastMillis;
 char mac[18];
+String weatherKey = "2fec1143f43e5bc01d052646a2cb8e1c"; //API key for open weather API
+boolean timeStart = false;
 
+//defines wifi client and mqtt client
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
 
@@ -31,8 +35,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print(topic);
   Serial.print("] ");
 
-
-  if (!timeStart)
+//code for running an hour long timer set to retrieve API data
+  if (!timeStart)//Checks if Timestart condition is false
   {
     // start 1-hour timer;
     lastMillis = millis();
@@ -41,8 +45,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
   
   if (timeStart && (millis() - lastMillis >= 3600L * 1000))
   {
-   humidity = getHum("Seattle");
-   timeStart = false;
+   humidity = getHum("Seattle");// retrieves humidity from getHum Function
+   timeStart = false;// resets condition
   }
   DynamicJsonBuffer  jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(payload); //parse it!
@@ -61,8 +65,8 @@ void reconnect() {
     Serial.print("Attempting MQTT connection...");
     if (mqtt.connect(mac, mqtt_name, mqtt_pass)) { //<<---using MAC as client ID, always unique!!!
       Serial.println("connected");
-      mqtt.subscribe("will/A4"); //we are subscribing to 'theTopic' and all subtopics below that topic
-    } else {                        //please change 'theTopic' to reflect your topic you are subscribing to
+      mqtt.subscribe("will/A4"); //subscribes to correct topic in MQTT server
+    } else {                        
       Serial.print("failed, rc=");
       Serial.print(mqtt.state());
       Serial.println(" try again in 5 seconds");
@@ -74,16 +78,14 @@ void reconnect() {
 
 void setup() {
   Serial.begin(115200);//for debugging code, comment out for production
-
+  //Initializes all pins to out put and turns them on
   pinMode(greenPin, OUTPUT);
   pinMode(redPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
-
   digitalWrite(greenPin, HIGH);
   digitalWrite(redPin, HIGH);
   digitalWrite(bluePin, HIGH);
-
-
+  //Connects to wifi access point
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
 
@@ -91,12 +93,12 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
-  
+  //prints confirmation of wifi connection to Serial
   Serial.println(); Serial.println("WiFi connected"); Serial.println();
   Serial.print("Your ESP has been assigned the internal IP address ");
   Serial.println(WiFi.localIP());
    WiFi.macAddress().toCharArray(mac,18);
-   
+  // retrieves the initial humidity reading
   humidity = getHum("Seattle");
   //connects to MQTT server
   mqtt.setServer(mqtt_server, 1883);
@@ -112,30 +114,27 @@ void loop() {
 }
 
 void outputReading(int temperature, float humidity, float light){
-  
+  // prints values to Serial
   Serial.print(temperature);
   Serial.print(humidity);
   Serial.println(light);
-  if (temperature < 60){
+  if (temperature < 60){//Checks temperature against threshold set
     digitalWrite(redPin,HIGH);
-    Serial.println(redPin);
   }else{
     digitalWrite(redPin,LOW);
   }   
-  if (humidity > 80){
+  if (humidity > 80){//Checks humidity against threshold set
     digitalWrite(bluePin,LOW);
-    Serial.println(bluePin);
     }else{
     digitalWrite(greenPin,HIGH);
     }
-  if (light < 200){
+  if (light < 200){//Checks light against threshold set
     digitalWrite(greenPin,HIGH);
-    Serial.println(greenPin);
   }else{
     digitalWrite(greenPin,LOW);
   }
 }
-
+//function retrieves humidity from openweather API returns an int
 int getHum(String city) {
   HTTPClient theClient; // initializes browser
   String apiCall = "http://api.openweathermap.org/data/2.5/weather?q=" + city; //Assembles the URL for the 
